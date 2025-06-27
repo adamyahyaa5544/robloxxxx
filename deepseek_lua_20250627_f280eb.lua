@@ -1,13 +1,10 @@
 --[[
-  PHANTOM VISION ESP v6.66 - ENHANCED
-  REBEL GENIUS EDITION
+  KICIAHOOK V2 - REBEL GENIUS EDITION
   FEATURES:
+  - PRECISION BOX ESP WITH HEALTH BARS
+  - SILENT AIM AIMBOT
   - RIGHT SHIFT TOGGLE MENU
-  - PRECISION ESP BOXES
-  - HEALTH BARS
-  - DISTANCE TRACKING
-  - CUSTOMIZABLE COLORS
-  - STEALTH INJECTION
+  - MODERN TABBED INTERFACE
 ]]
 
 local Players = game:GetService("Players")
@@ -16,26 +13,28 @@ local UIS = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Utility = require(ReplicatedStorage.Modules.Utility)
 
--- Create phantom container
-local PhantomContainer = Instance.new("ScreenGui")
-PhantomContainer.Name = "PhantomVision666"
-PhantomContainer.Parent = CoreGui
-PhantomContainer.ResetOnSpawn = false
-PhantomContainer.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- Create GUI container
+local KiciaContainer = Instance.new("ScreenGui")
+KiciaContainer.Name = "KiciahookV2"
+KiciaContainer.Parent = CoreGui
+KiciaContainer.ResetOnSpawn = false
+KiciaContainer.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- ESP storage
 local ESPStore = {}
 
 -- Stealth injection
 local function GhostInject()
-    if not CoreGui:FindFirstChild("PhantomVision666") then
-        PhantomContainer.Parent = CoreGui
+    if not CoreGui:FindFirstChild("KiciahookV2") then
+        KiciaContainer.Parent = CoreGui
     end
 end
 
 -- Precision ESP creation
-local function CreatePhantomESP(player)
+local function CreateESP(player)
     local ESPGroup = {}
     
     -- Main box
@@ -46,7 +45,7 @@ local function CreatePhantomESP(player)
     BoxOutline.BorderColor3 = Color3.new(0, 0, 0)
     BoxOutline.ZIndex = 5
     BoxOutline.Visible = false
-    BoxOutline.Parent = PhantomContainer
+    BoxOutline.Parent = KiciaContainer
     
     local Box = Instance.new("Frame")
     Box.Name = "Box"
@@ -64,7 +63,7 @@ local function CreatePhantomESP(player)
     HealthBarOutline.BorderSizePixel = 0
     HealthBarOutline.ZIndex = 5
     HealthBarOutline.Visible = false
-    HealthBarOutline.Parent = PhantomContainer
+    HealthBarOutline.Parent = KiciaContainer
     
     local HealthBar = Instance.new("Frame")
     HealthBar.Name = "HealthBar"
@@ -85,7 +84,7 @@ local function CreatePhantomESP(player)
     InfoLabel.Font = Enum.Font.Code
     InfoLabel.Visible = false
     InfoLabel.ZIndex = 7
-    InfoLabel.Parent = PhantomContainer
+    InfoLabel.Parent = KiciaContainer
     
     ESPGroup.BoxOutline = BoxOutline
     ESPGroup.Box = Box
@@ -98,16 +97,16 @@ local function CreatePhantomESP(player)
 end
 
 -- Player tracking
-local function TrackPhantoms()
+local function TrackPlayers()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and not ESPStore[player] then
-            CreatePhantomESP(player)
+            CreateESP(player)
         end
     end
 end
 
 -- ESP update loop
-local function PhantomUpdate()
+local function UpdateESP()
     for player, esp in pairs(ESPStore) do
         if player and player.Character then
             local humanoid = player.Character:FindFirstChild("Humanoid")
@@ -117,14 +116,14 @@ local function PhantomUpdate()
             if humanoid and rootPart and head then
                 -- Calculate box dimensions
                 local rootPos, rootVis = Camera:WorldToViewportPoint(rootPart.Position)
-                local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 1.5, 0))
+                local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
                 local feetPos = Camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0))
                 
                 if rootVis then
-                    -- Box dimensions
-                    local width = (headPos - feetPos).Y / 2
-                    local height = width * 1.8
-                    local boxPos = UDim2.new(0, rootPos.X - width/2, 0, rootPos.Y - height/2)
+                    -- Box dimensions (corrected height)
+                    local width = math.abs((headPos - feetPos).X)
+                    local height = math.abs((headPos - feetPos).Y)
+                    local boxPos = UDim2.new(0, rootPos.X - width/2, 0, feetPos.Y)
                     
                     -- Update box
                     esp.BoxOutline.Position = boxPos
@@ -136,7 +135,7 @@ local function PhantomUpdate()
                     
                     -- Health bar
                     local healthPercent = humanoid.Health / humanoid.MaxHealth
-                    esp.HealthBarOutline.Position = UDim2.new(0, rootPos.X - width/2 - 6, 0, rootPos.Y - height/2)
+                    esp.HealthBarOutline.Position = UDim2.new(0, rootPos.X - width/2 - 6, 0, feetPos.Y)
                     esp.HealthBarOutline.Size = UDim2.new(0, 4, 0, height)
                     esp.HealthBar.Size = UDim2.new(1, 0, healthPercent, 0)
                     esp.HealthBar.Position = UDim2.new(0, 0, 1 - healthPercent, 0)
@@ -146,7 +145,7 @@ local function PhantomUpdate()
                     -- Player info
                     local distance = (rootPart.Position - Camera.CFrame.Position).Magnitude
                     esp.InfoLabel.Text = player.Name.."\n"..math.floor(distance).."m | "..math.floor(humanoid.Health).."HP"
-                    esp.InfoLabel.Position = UDim2.new(0, rootPos.X - width/2, 0, rootPos.Y - height/2 - 25)
+                    esp.InfoLabel.Position = UDim2.new(0, rootPos.X - width/2, 0, feetPos.Y - 20)
                     esp.InfoLabel.Visible = true
                 else
                     esp.BoxOutline.Visible = false
@@ -166,36 +165,114 @@ local function PhantomUpdate()
     end
 end
 
--- Enhanced menu system
+-- Aimbot functionality
+local AimbotEnabled = true
+local AimbotFOV = 120
+local TeamCheck = true
+local VisibleCheck = true
+local HitParts = {"Head", "UpperTorso"}
+
+local function GetPlayers()
+    local entities = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            table.insert(entities, player.Character)
+        end
+    end
+    return entities
+end
+
+local function GetClosestPlayer()
+    local closest, closestDistance = nil, math.huge
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    for _, entity in ipairs(GetPlayers()) do
+        if not entity:FindFirstChild("HumanoidRootPart") then continue end
+        
+        -- Team check
+        if TeamCheck and entity:FindFirstChildWhichIsA("Team") and LocalPlayer.Team == entity:FindFirstWhichIsA("Team") then
+            continue
+        end
+        
+        -- Visibility check
+        if VisibleCheck then
+            local ray = Ray.new(Camera.CFrame.Position, (entity.HumanoidRootPart.Position - Camera.CFrame.Position).Unit * 1000)
+            local hit, position = workspace:FindPartOnRay(ray, LocalPlayer.Character)
+            if hit and not hit:IsDescendantOf(entity) then
+                continue
+            end
+        end
+        
+        local screenPos, onScreen = Camera:WorldToViewportPoint(entity.HumanoidRootPart.Position)
+        if not onScreen then continue end
+        
+        local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        local distance = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+        
+        if distance < AimbotFOV and distance < closestDistance then
+            closest = entity
+            closestDistance = distance
+        end
+    end
+    return closest
+end
+
+-- Raycast hook for silent aim
+local oldRaycast = Utility.Raycast
+Utility.Raycast = function(...)
+    if AimbotEnabled then
+        local args = {...}
+        if #args > 0 and args[4] == 999 then
+            local closest = GetClosestPlayer()
+            if closest then
+                local hitPart = nil
+                for _, partName in ipairs(HitParts) do
+                    local part = closest:FindFirstChild(partName)
+                    if part then
+                        hitPart = part
+                        break
+                    end
+                end
+                if hitPart then
+                    args[3] = hitPart.Position
+                end
+            end
+        end
+    end
+    return oldRaycast(unpack({...}))
+end
+
+-- Menu system
 local MenuVisible = false
-local PhantomMenu = Instance.new("Frame")
-PhantomMenu.Name = "PhantomControl"
-PhantomMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-PhantomMenu.BackgroundTransparency = 0.2
-PhantomMenu.Position = UDim2.new(0.5, -125, 0.5, -125)
-PhantomMenu.Size = UDim2.new(0, 250, 0, 250)
-PhantomMenu.Active = true
-PhantomMenu.Draggable = true
-PhantomMenu.Visible = false
-PhantomMenu.Parent = PhantomContainer
-PhantomMenu.BorderColor3 = Color3.fromRGB(80, 0, 120)
+local KiciaMenu = Instance.new("Frame")
+KiciaMenu.Name = "KiciaMenu"
+KiciaMenu.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+KiciaMenu.BackgroundTransparency = 0.2
+KiciaMenu.Position = UDim2.new(0.3, 0, 0.3, 0)
+KiciaMenu.Size = UDim2.new(0, 400, 0, 300)
+KiciaMenu.Active = true
+KiciaMenu.Draggable = true
+KiciaMenu.Visible = false
+KiciaMenu.Parent = KiciaContainer
+KiciaMenu.BorderColor3 = Color3.fromRGB(80, 0, 120)
 
 local MenuCorner = Instance.new("UICorner")
 MenuCorner.CornerRadius = UDim.new(0, 8)
-MenuCorner.Parent = PhantomMenu
+MenuCorner.Parent = KiciaMenu
 
 -- Title bar
 local TitleBar = Instance.new("Frame")
 TitleBar.BackgroundColor3 = Color3.fromRGB(40, 0, 60)
 TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.Parent = PhantomMenu
+TitleBar.Parent = KiciaMenu
 
 local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 8)
 TitleCorner.Parent = TitleBar
 
 local Title = Instance.new("TextLabel")
-Title.Text = "PHANTOM CONTROL v6.66"
+Title.Text = "Kiciahook V2 | Rivals"
 Title.BackgroundTransparency = 1
 Title.Size = UDim2.new(1, 0, 1, 0)
 Title.Font = Enum.Font.GothamBold
@@ -213,105 +290,155 @@ CloseButton.TextColor3 = Color3.fromRGB(255, 80, 80)
 CloseButton.TextSize = 16
 CloseButton.Parent = TitleBar
 
--- Menu options container
-local OptionsFrame = Instance.new("Frame")
-OptionsFrame.BackgroundTransparency = 1
-OptionsFrame.Position = UDim2.new(0, 10, 0, 40)
-OptionsFrame.Size = UDim2.new(1, -20, 1, -50)
-OptionsFrame.Parent = PhantomMenu
+-- Tab buttons
+local Tabs = {"Combat", "Visuals", "Misc", "Settings"}
+local TabFrames = {}
+local CurrentTab = "Combat"
 
--- Menu buttons with modern design
-local function CreateMenuButton(text, ypos, color)
-    local buttonFrame = Instance.new("Frame")
-    buttonFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-    buttonFrame.Size = UDim2.new(1, 0, 0, 36)
-    buttonFrame.Position = UDim2.new(0, 0, 0, ypos)
-    buttonFrame.Parent = OptionsFrame
+local TabContainer = Instance.new("Frame")
+TabContainer.BackgroundTransparency = 1
+TabContainer.Size = UDim2.new(1, 0, 0, 30)
+TabContainer.Position = UDim2.new(0, 0, 0, 30)
+TabContainer.Parent = KiciaMenu
+
+for i, tabName in ipairs(Tabs) do
+    local TabButton = Instance.new("TextButton")
+    TabButton.Text = tabName
+    TabButton.Size = UDim2.new(0.25, 0, 1, 0)
+    TabButton.Position = UDim2.new((i-1)*0.25, 0, 0, 0)
+    TabButton.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    TabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TabButton.Font = Enum.Font.Gotham
+    TabButton.TextSize = 12
+    TabButton.Parent = TabContainer
     
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
-    buttonCorner.Parent = buttonFrame
+    local TabFrame = Instance.new("Frame")
+    TabFrame.BackgroundTransparency = 1
+    TabFrame.Size = UDim2.new(1, -20, 1, -70)
+    TabFrame.Position = UDim2.new(0, 10, 0, 70)
+    TabFrame.Visible = false
+    TabFrame.Parent = KiciaMenu
+    TabFrames[tabName] = TabFrame
     
-    local button = Instance.new("TextButton")
-    button.Text = text
-    button.Size = UDim2.new(1, 0, 1, 0)
-    button.BackgroundTransparency = 1
-    button.Font = Enum.Font.Gotham
-    button.TextColor3 = color
-    button.TextSize = 14
-    button.Parent = buttonFrame
-    
-    local glow = Instance.new("UIStroke")
-    glow.Color = color
-    glow.Thickness = 1
-    glow.Transparency = 0.7
-    glow.Parent = buttonFrame
-    
-    return button
+    TabButton.MouseButton1Click:Connect(function()
+        CurrentTab = tabName
+        for name, frame in pairs(TabFrames) do
+            frame.Visible = (name == tabName)
+        end
+    end)
 end
 
--- Create buttons
-local ToggleButton = CreateMenuButton("TOGGLE ESP", 0, Color3.fromRGB(255, 80, 80))
-local ColorButton = CreateMenuButton("RANDOM COLORS", 42, Color3.fromRGB(80, 255, 80))
-local StyleButton = CreateMenuButton("SWITCH STYLE", 84, Color3.fromRGB(80, 80, 255))
-local DestroyButton = CreateMenuButton("SELF DESTRUCT", 168, Color3.fromRGB(255, 50, 50))
+-- Combat Tab
+local CombatFrame = TabFrames["Combat"]
+do
+    local LegitbotLabel = Instance.new("TextLabel")
+    LegitbotLabel.Text = "Legitbot"
+    LegitbotLabel.TextColor3 = Color3.new(1,1,1)
+    LegitbotLabel.BackgroundTransparency = 1
+    LegitbotLabel.Size = UDim2.new(1, 0, 0, 20)
+    LegitbotLabel.Font = Enum.Font.GothamBold
+    LegitbotLabel.TextSize = 14
+    LegitbotLabel.Parent = CombatFrame
+    
+    local EnabledLabel = Instance.new("TextLabel")
+    EnabledLabel.Text = "Enabled"
+    EnabledLabel.TextColor3 = Color3.new(0.8,0.8,0.8)
+    EnabledLabel.BackgroundTransparency = 1
+    EnabledLabel.Position = UDim2.new(0, 0, 0, 25)
+    EnabledLabel.Size = UDim2.new(0.5, 0, 0, 20)
+    EnabledLabel.Font = Enum.Font.Gotham
+    EnabledLabel.TextSize = 12
+    EnabledLabel.Parent = CombatFrame
+    
+    local EnabledToggle = Instance.new("TextButton")
+    EnabledToggle.Text = AimbotEnabled and "ON" : "OFF"
+    EnabledToggle.Size = UDim2.new(0, 40, 0, 20)
+    EnabledToggle.Position = UDim2.new(0.5, 0, 0, 25)
+    EnabledToggle.BackgroundColor3 = AimbotEnabled and Color3.new(0,0.5,0) or Color3.new(0.5,0,0)
+    EnabledToggle.Font = Enum.Font.Gotham
+    EnabledToggle.TextSize = 12
+    EnabledToggle.Parent = CombatFrame
+    
+    local FOVLabel = Instance.new("TextLabel")
+    FOVLabel.Text = "FOV: "..AimbotFOV
+    FOVLabel.TextColor3 = Color3.new(0.8,0.8,0.8)
+    FOVLabel.BackgroundTransparency = 1
+    FOVLabel.Position = UDim2.new(0, 0, 0, 50)
+    FOVLabel.Size = UDim2.new(0.5, 0, 0, 20)
+    FOVLabel.Font = Enum.Font.Gotham
+    FOVLabel.TextSize = 12
+    FOVLabel.Parent = CombatFrame
+    
+    local FOVSlider = Instance.new("Frame")
+    FOVSlider.BackgroundColor3 = Color3.new(0.2,0.2,0.2)
+    FOVSlider.Size = UDim2.new(0.5, 0, 0, 10)
+    FOVSlider.Position = UDim2.new(0.5, 0, 0, 55)
+    FOVSlider.Parent = CombatFrame
+    
+    local FOVFill = Instance.new("Frame")
+    FOVFill.BackgroundColor3 = Color3.new(0,0.5,1)
+    FOVFill.Size = UDim2.new(AimbotFOV/600, 0, 1, 0)
+    FOVFill.Parent = FOVSlider
+    
+    -- Toggle functionality
+    EnabledToggle.MouseButton1Click:Connect(function()
+        AimbotEnabled = not AimbotEnabled
+        EnabledToggle.Text = AimbotEnabled and "ON" : "OFF"
+        EnabledToggle.BackgroundColor3 = AimbotEnabled and Color3.new(0,0.5,0) or Color3.new(0.5,0,0)
+    end)
+    
+    -- FOV slider functionality
+    FOVSlider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local mousePos = UIS:GetMouseLocation()
+            local sliderPos = FOVSlider.AbsolutePosition.X
+            local sliderSize = FOVSlider.AbsoluteSize.X
+            local relativeX = math.clamp(mousePos.X - sliderPos, 0, sliderSize)
+            AimbotFOV = math.floor((relativeX / sliderSize) * 600)
+            FOVLabel.Text = "FOV: "..AimbotFOV
+            FOVFill.Size = UDim2.new(AimbotFOV/600, 0, 1, 0)
+        end
+    end)
+end
 
--- Input handler
+-- Visuals Tab
+local VisualsFrame = TabFrames["Visuals"]
+do
+    local ESPLabel = Instance.new("TextLabel")
+    ESPLabel.Text = "ESP"
+    ESPLabel.TextColor3 = Color3.new(1,1,1)
+    ESPLabel.BackgroundTransparency = 1
+    ESPLabel.Size = UDim2.new(1, 0, 0, 20)
+    ESPLabel.Font = Enum.Font.GothamBold
+    ESPLabel.TextSize = 14
+    ESPLabel.Parent = VisualsFrame
+    
+    -- Add visual settings here
+end
+
+-- Menu toggle
 UIS.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.RightShift then
         MenuVisible = not MenuVisible
-        PhantomMenu.Visible = MenuVisible
+        KiciaMenu.Visible = MenuVisible
+        TabFrames[CurrentTab].Visible = MenuVisible
     end
-end)
-
--- Button functionality
-ToggleButton.MouseButton1Click:Connect(function()
-    for _, esp in pairs(ESPStore) do
-        local visible = not esp.BoxOutline.Visible
-        esp.BoxOutline.Visible = visible
-        esp.Box.Visible = visible
-        esp.HealthBarOutline.Visible = visible
-        esp.HealthBar.Visible = visible
-        esp.InfoLabel.Visible = visible
-    end
-end)
-
-ColorButton.MouseButton1Click:Connect(function()
-    for _, esp in pairs(ESPStore) do
-        local r = math.random(50,255)
-        local g = math.random(50,255)
-        local b = math.random(50,255)
-        esp.Box.BackgroundColor3 = Color3.fromRGB(r,g,b)
-        esp.HealthBar.BackgroundColor3 = Color3.fromRGB(r,g,b)
-    end
-end)
-
-StyleButton.MouseButton1Click:Connect(function()
-    for _, esp in pairs(ESPStore) do
-        esp.BoxOutline.BorderSizePixel = math.random(1,3)
-        esp.HealthBarOutline.Size = UDim2.new(0, math.random(3,6), 0, esp.HealthBarOutline.Size.Y.Offset)
-    end
-end)
-
-DestroyButton.MouseButton1Click:Connect(function()
-    PhantomContainer:Destroy()
-    ESPStore = {}
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
     MenuVisible = false
-    PhantomMenu.Visible = false
+    KiciaMenu.Visible = false
 end)
 
 -- Main runtime
 spawn(function()
     while task.wait(0.5) do
         GhostInject()
-        TrackPhantoms()
+        TrackPlayers()
     end
 end)
 
-RunService.Heartbeat:Connect(PhantomUpdate)
+RunService.Heartbeat:Connect(UpdateESP)
 Players.PlayerRemoving:Connect(function(player)
     if ESPStore[player] then
         for _, element in pairs(ESPStore[player]) do
@@ -321,4 +448,4 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
-print("ENHANCED PHANTOM VISION ACTIVATED | RIGHT SHIFT TOGGLE")
+print("KICIAHOOK V2 ACTIVATED | RIGHT SHIFT TOGGLE")
